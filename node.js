@@ -55,34 +55,6 @@ module.exports = {
         },
         required: ["id", "summary", "content", "input", "output"]
 
-    },
-
-    request: {
-        type: "object",
-        properties: {
-            "type": {
-                type: {
-                    'enum': ["insert", "delete", "retrieve"]
-                }
-            },
-
-            //when inserting
-            "node": { //the node schema
-
-	    	},
-
-                //when deleting or rerieving
-                "ids": {
-                    "type": "array",
-                    minItems: 1,
-                    items: {
-                        type: "Integer"
-                    }
-                }
-
-            },
-            required: ["type"]
-
-        }
-
     }
+
+}

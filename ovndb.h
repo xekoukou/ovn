@@ -24,25 +24,24 @@
 #include<leveldb/c.h>
 #include<jansson.h>
 
-typedef struct
-{
-  int64_t nextId;
-  leveldb_t *db;
-  leveldb_options_t *options;
-  leveldb_readoptions_t *readoptions;
-  leveldb_writeoptions_t *writeoptions;
+typedef struct {
+	int64_t nextId;
+	leveldb_t *db;
+	leveldb_options_t *options;
+	leveldb_readoptions_t *readoptions;
+	leveldb_writeoptions_t *writeoptions;
 
 } ovndb_t;
 
-void ovndb_init (ovndb_t ** ovndb);
+void ovndb_init(ovndb_t ** ovndb);
 
 //sleep a few seconds after
-void ovndb_close (ovndb_t * ovndb);
+void ovndb_close(ovndb_t * ovndb);
 
 // id of -1 results in obtaining a new id
-void ovndb_insert_node (ovndb_t * ovndb, json_t * node);
+void ovndb_insert_node(ovndb_t * ovndb, json_t * node);
 
-char *ovndb_retrieve_node (ovndb_t * ovndb, int64_t id, int64_t * length);
+char *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id, int64_t * length);
 
-void ovndb_delete_node (ovndb_t * ovndb, int64_t id);
+void ovndb_delete_node(ovndb_t * ovndb, int64_t id);
 #endif
