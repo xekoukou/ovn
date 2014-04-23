@@ -2,15 +2,19 @@
 #include<czmq.h>
 #include<jansson.h>
 
-json_t *process_insert(ovndb_t * ovndb, json_t * request)
+json_t *process_newNodeRequest(ovndb_t * ovndb, json_t * request)
 {
 
-	json_t *node = json_object_get(request, "node");
-	ovndb_insert_node(ovndb, node);
+	json_t *node = json_object();
+	json_object_set(node, "parentId", json_object_get(request, "parentId"));
+	json_object_set(node, "nodeData", json_object_get(request, "nodeData"));
+	int64_t id = ovndb_insert_node(ovndb, node);
 
-	//send a response  TODO
-	// must return the id of the node because it might have been created
+	json_t *response = json_object();
+	json_object_set_new(response, "type", json_string("newNodeResponse"));
+	json_object_set_new(response, "id", json_integer(id));
 
+	return response;
 }
 
 json_t *process_delete(ovndb_t * ovndb, json_t * request)
@@ -26,7 +30,7 @@ json_t *process_delete(ovndb_t * ovndb, json_t * request)
 
 }
 
-json_t *process_retrieve(ovndb_t * ovndb, json_t * request)
+json_t *process_retrieveRequest(ovndb_t * ovndb, json_t * request)
 {
 
 	json_t *ids = json_object_get(request, "idArray");
@@ -67,27 +71,27 @@ void process_request(void *router, ovndb_t * ovndb)
 	json_t *response;
 
 	if (strcmp(type, "retrieveRequest") == 0) {
-		response = process_insert(ovndb, request);
+		response = process_retrieveRequest(ovndb, request);
 
 	} else {
 
-		if (strcmp(type, "delete") == 0) {
+		if (strcmp(type, "deleteRequest") == 0) {
 
 			response = process_delete(ovndb, request);
 		} else {
 
-			if (strcmp(type, "retrieve") == 0) {
-				response = process_retrieve(ovndb, response);
+			if (strcmp(type, "newNodeRequest") == 0) {
+				response =
+				    process_newNodeRequest(ovndb, request);
 
 			}
 		}
 	}
-
-	const char *requestId =
-	    json_string_value(json_object_get(request_json, "requestId"));
+	free((char *)type);
 
 	json_t *response_json = json_object();
-	json_object_set_new(response_json, "requestId", json_string(requestId));
+	json_object_set(response_json, "requestId",
+			json_object_get(request_json, "requestId"));
 	json_object_set_new(response_json, "response", response);
 
 	zmsg_t *res = zmsg_new();
@@ -95,6 +99,7 @@ void process_request(void *router, ovndb_t * ovndb)
 	zmsg_addstr(res, res_json_str);
 	free(res_json_str);
 	json_decref(response_json);
+	json_decref(request_json);
 
 	zmsg_wrap(res, address);
 	zmsg_send(router, &res);

@@ -9,52 +9,60 @@ module.exports = {
             id: {
                 type: "integer"
             },
-            summary: {
-                type: "String"
+            parentId: {
+                type: "integer"
             },
-            content: {
-                type: "String"
-            },
-            input: {
-                type: "array"
-                items: {
-                    type: "object",
-                    properties: {
-                        summary: {
-                            type: "String"
-                        },
-                        content: {
-                            type: "String"
-                        }
-
+            nodeData: {
+                type: "object",
+                properties: {
+                    summary: {
+                        type: "String"
                     },
-                    required: ["content", "summary"]
-
-                }
-            },
-            output: {
-                type: "array"
-                items: {
-                    type: "object",
-                    properties: {
-                        summary: {
-                            type: "String"
-                        },
-                        content: {
-                            type: "String"
-                        }
-
+                    content: {
+                        type: "String"
                     },
-                    required: ["content", "summary"]
+                    input: {
+                        type: "array"
+                        items: {
+                            type: "object",
+                            properties: {
+                                summary: {
+                                    type: "String"
+                                },
+                                content: {
+                                    type: "String"
+                                }
 
-                }
+                            },
+                            required: ["content", "summary"]
+
+                        }
+                    },
+                    output: {
+                        type: "array"
+                        items: {
+                            type: "object",
+                            properties: {
+                                summary: {
+                                    type: "String"
+                                },
+                                content: {
+                                    type: "String"
+                                }
+
+                            },
+                            required: ["content", "summary"]
+
+                        }
+                    }
+
+
+
+                },
+                required: ["summary", "content", "input", "output"]
             }
-
-
-
         },
-        required: ["id", "summary", "content", "input", "output"]
-
+        required: ["id", "parentId", "nodeData"]
     }
 
 }

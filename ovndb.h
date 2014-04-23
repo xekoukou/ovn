@@ -38,8 +38,7 @@ void ovndb_init(ovndb_t ** ovndb);
 //sleep a few seconds after
 void ovndb_close(ovndb_t * ovndb);
 
-// id of -1 results in obtaining a new id
-void ovndb_insert_node(ovndb_t * ovndb, json_t * node);
+int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node);
 
 char *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id, int64_t * length);
 

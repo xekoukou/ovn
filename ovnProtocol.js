@@ -4,12 +4,13 @@ module.exports = {
         type: "object",
         properties: {
             requestId: {
-                type: "string"
+                type: "integer"
             }
             request: {
                 type: "object",
                 oneof: [{
                     "$ref": "#/definitions/retrieveRequest"
+                    "$ref": "#/definitions/newNodeRequest"
                 }]
             }
 
@@ -23,16 +24,15 @@ module.exports = {
         type: "object",
         properties: {
             requestId: {
-                type: "string"
+                type: "integer"
             }
             response: {
                 type: "object",
                 oneof: [{
-
+                    "$ref": "#/definitions/retrieveResponse"
+                    "$ref": "#/definitions/newNodeResponse"
                 }]
             }
-
-
         },
         required: ["requestId", "response"]
 
@@ -60,6 +60,25 @@ module.exports = {
                 required: ["type", "idArray"]
             }
         },
+        newNodeRequest: {
+            type: "object",
+            properties: {
+                "type": {
+                    "enum": ["newNodeRequest"]
+                },
+
+                parentId: {
+                    type: "integer",
+                    minimum: 0
+                },
+                nodeData: {
+                    type: "object",
+                }
+
+
+            },
+            required: ["type", "parentId", "nodeData"]
+        },
         retrieveResponse: {
 
             type: "object",
@@ -79,8 +98,23 @@ module.exports = {
                 }
             },
             required: ["type", "nodeArray"]
-        }
+        },
+        newNodeResponse: {
+            type: "object",
+            properties: {
+                "type": {
+                    "enum": ["newNodeResponse"]
+                },
 
+                id: {
+                    type: "integer",
+                }
+
+
+            },
+            required: ["type", "id"]
+
+        }
     ]
 
 

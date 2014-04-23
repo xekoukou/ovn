@@ -64,40 +64,45 @@ void ovndb_close(ovndb_t * ovndb)
 
 }
 
-void ovndb_insert_node(ovndb_t * ovndb, json_t * node)
+void ovndb_update_node(ovndb_t * ovndb, json_t * node)
 {
 
 	char *errptr = NULL;
 	int64_t id = json_integer_value(json_object_get(node, "id"));
 
-	if (id != -1) {
-		const char *str_node = json_dumps(node, JSON_COMPACT);
-		leveldb_put(ovndb->db,
-			    ovndb->writeoptions, (const char *)&id,
-			    sizeof(int64_t), (const char *)
-			    str_node, 2 * sizeof(int64_t), &errptr);
-	} else {
-		id = ovndb->nextId;
-		json_object_set_new(node, "id", json_integer(id));
-		const char *str_node = json_dumps(node, JSON_COMPACT);
+	const char *str_node = json_dumps(node, JSON_COMPACT);
+	leveldb_put(ovndb->db,
+		    ovndb->writeoptions, (const char *)&id,
+		    sizeof(int64_t), (const char *)
+		    str_node, 2 * sizeof(int64_t), &errptr);
 
-		//update the last id 
-		leveldb_writebatch_t *wb = leveldb_writebatch_create();
-		int64_t zero = 0;
-		leveldb_writebatch_put(wb, (const char *)&zero, sizeof(int64_t),
-				       (const char *)&(ovndb->nextId),
-				       sizeof(int64_t));
-
-		leveldb_writebatch_put(wb, (const char *)&(ovndb->nextId),
-				       sizeof(int64_t), str_node,
-				       sizeof(int64_t));
-
-		leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
-		//TODO catch the error
-		leveldb_writebatch_destroy(wb);
-		ovndb->nextId++;
-
+	if (errptr) {
+		printf("\n%s", errptr);
+		exit(1);
 	}
+
+}
+
+int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node)
+{
+
+	char *errptr = NULL;
+	int64_t id = ovndb->nextId;
+	json_object_set_new(node, "id", json_integer(id));
+	const char *str_node = json_dumps(node, JSON_COMPACT);
+
+	//update the last id 
+	leveldb_writebatch_t *wb = leveldb_writebatch_create();
+	int64_t zero = 0;
+	leveldb_writebatch_put(wb, (const char *)&zero, sizeof(int64_t),
+			       (const char *)&(ovndb->nextId), sizeof(int64_t));
+
+	leveldb_writebatch_put(wb, (const char *)&(ovndb->nextId),
+			       sizeof(int64_t), str_node, sizeof(int64_t));
+
+	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
+	leveldb_writebatch_destroy(wb);
+	ovndb->nextId++;
 
 	if (errptr) {
 		printf("\n%s", errptr);
