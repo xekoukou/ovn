@@ -12,6 +12,20 @@ module.exports = {
             parentId: {
                 type: "integer"
             },
+            input: {
+                type: "array"
+                items: {
+                    type: "object",
+                    "$ref": "#/definitions/link"
+                }
+            },
+            output: {
+                type: "array"
+                items: {
+                    type: "object",
+                    "$ref": "#/definitions/link"
+                }
+            },
             nodeData: {
                 type: "object",
                 properties: {
@@ -20,49 +34,45 @@ module.exports = {
                     },
                     content: {
                         type: "String"
-                    },
-                    input: {
-                        type: "array"
-                        items: {
-                            type: "object",
-                            properties: {
-                                summary: {
-                                    type: "String"
-                                },
-                                content: {
-                                    type: "String"
-                                }
-
-                            },
-                            required: ["content", "summary"]
-
-                        }
-                    },
-                    output: {
-                        type: "array"
-                        items: {
-                            type: "object",
-                            properties: {
-                                summary: {
-                                    type: "String"
-                                },
-                                content: {
-                                    type: "String"
-                                }
-
-                            },
-                            required: ["content", "summary"]
-
-                        }
                     }
-
-
-
                 },
-                required: ["summary", "content", "input", "output"]
-            }
+                required: ["summary", "content"]
+            },
+
         },
-        required: ["id", "parentId", "nodeData"]
-    }
+        required: ["id", "parentId", "input", "output", "nodeData"]
+    },
+
+    definitions: [
+
+        link: {
+            type: "object",
+            properties: {
+                id: {
+                    type: "integer"
+                },
+                origId: {
+                    type: "integer"
+                },
+                endId: {
+                    type: "integer"
+                },
+                linkData: {
+                    type: "object",
+                    properties: {
+                        summary: {
+                            type: "String"
+                        },
+                        content: {
+                            type: "String"
+                        }
+                    },
+                    required: ["content", "summary"]
+                }
+            },
+            required: ["id", "origId", "endId", "linkData"]
+        }
+
+    ]
 
 }

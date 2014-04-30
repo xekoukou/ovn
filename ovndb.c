@@ -30,7 +30,6 @@ void ovndb_init(ovndb_t ** ovndb)
 	char *errptr = NULL;
 
 	leveldb_options_t *options = leveldb_options_create();
-	leveldb_options_set_create_if_missing(options, 1);
 
 	(*ovndb)->options = options;
 
@@ -49,10 +48,12 @@ void ovndb_init(ovndb_t ** ovndb)
 //obtain the nextId
 	int64_t zero = 0;
 	size_t vallen = sizeof(int64_t);
-	(*ovndb)->nextId =
-	    *(leveldb_get
-	      ((*ovndb)->db, readoptions, (char *)&zero, sizeof(int64_t),
-	       &vallen, &errptr));
+	int64_t *value;
+	value = (int64_t *) leveldb_get
+	    ((*ovndb)->db, readoptions, (char *)&zero, sizeof(int64_t),
+	     &vallen, &errptr);
+
+	(*ovndb)->nextId = *value;
 	(*ovndb)->nextId++;
 }
 
@@ -64,6 +65,7 @@ void ovndb_close(ovndb_t * ovndb)
 
 }
 
+//TODO check that this code works
 void ovndb_update_node(ovndb_t * ovndb, json_t * node)
 {
 
@@ -98,16 +100,18 @@ int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node)
 			       (const char *)&(ovndb->nextId), sizeof(int64_t));
 
 	leveldb_writebatch_put(wb, (const char *)&(ovndb->nextId),
-			       sizeof(int64_t), str_node, sizeof(int64_t));
+			       sizeof(int64_t), str_node, strlen(str_node) + 1);
 
 	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
 	leveldb_writebatch_destroy(wb);
 	ovndb->nextId++;
+	free((char *)str_node);
 
 	if (errptr) {
 		printf("\n%s", errptr);
 		exit(1);
 	}
+	return id;
 
 }
 

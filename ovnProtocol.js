@@ -67,17 +67,13 @@ module.exports = {
                     "enum": ["newNodeRequest"]
                 },
 
-                parentId: {
-                    type: "integer",
-                    minimum: 0
-                },
-                nodeData: {
+                node: {
                     type: "object",
                 }
 
 
             },
-            required: ["type", "parentId", "nodeData"]
+            required: ["type", "node"]
         },
         retrieveResponse: {
 

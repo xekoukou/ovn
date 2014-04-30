@@ -5,11 +5,7 @@
 json_t *process_newNodeRequest(ovndb_t * ovndb, json_t * request)
 {
 
-	json_t *node = json_object();
-	json_object_set(node, "parentId", json_object_get(request, "parentId"));
-	json_object_set(node, "nodeData", json_object_get(request, "nodeData"));
-	int64_t id = ovndb_insert_node(ovndb, node);
-
+	int64_t id = ovndb_insert_node(ovndb, json_object_get(request, "node"));
 	json_t *response = json_object();
 	json_object_set_new(response, "type", json_string("newNodeResponse"));
 	json_object_set_new(response, "id", json_integer(id));
@@ -43,7 +39,7 @@ json_t *process_retrieveRequest(ovndb_t * ovndb, json_t * request)
 		char *node_str = ovndb_retrieve_node(ovndb, id, &length);
 
 		json_error_t error;
-		json_t *node = json_loads(node_str, 0, &error);
+		json_t *node = json_loads(strdup(node_str), 0, &error);
 		json_array_append(nodeArray, node);
 
 	}
@@ -60,10 +56,14 @@ void process_request(void *router, ovndb_t * ovndb)
 
 	zmsg_t *msg = zmsg_recv(router);
 	zframe_t *address = zmsg_unwrap(msg);
+	printf("\novn received: %s\n",
+	       (const char *)zframe_data(zmsg_first(msg)));
 
 	json_error_t error;
 	json_t *request_json =
-	    json_loads((const char *)zframe_data(zmsg_first(msg)), 0, &error);
+	    json_loads((const char *)zframe_strdup(zmsg_first(msg)), 0, &error);
+
+	zmsg_destroy(&msg);
 
 	json_t *request = json_object_get(request_json, "request");
 	const char *type = json_string_value(json_object_get(request, "type"));
@@ -87,7 +87,6 @@ void process_request(void *router, ovndb_t * ovndb)
 			}
 		}
 	}
-	free((char *)type);
 
 	json_t *response_json = json_object();
 	json_object_set(response_json, "requestId",
@@ -96,13 +95,15 @@ void process_request(void *router, ovndb_t * ovndb)
 
 	zmsg_t *res = zmsg_new();
 	char *res_json_str = json_dumps(response_json, JSON_COMPACT);
+	printf("\novn sent: %s\n", res_json_str);
+
 	zmsg_addstr(res, res_json_str);
 	free(res_json_str);
 	json_decref(response_json);
 	json_decref(request_json);
 
 	zmsg_wrap(res, address);
-	zmsg_send(router, &res);
+	zmsg_send(&res, router);
 }
 
 int main(int argc, char *argv[])
@@ -110,35 +111,26 @@ int main(int argc, char *argv[])
 
 	if (argc != 3) {
 		printf
-		    ("\nPlease provide the ip address for the server to bind and the port");
+		    ("\nPlease provide the ip address for the server to connect and the port\n");
 		exit(1);
 	}
 	//create the server sockets 
 	zctx_t *ctx = zctx_new();
 	void *router = zsocket_new(ctx, ZMQ_ROUTER);
 	int port = atoi(argv[2]);
-	int rc = zsocket_bind(router, "tcp://%s:%d", argv[1], port);
-	if (rc != port) {
-		printf("The position_server could't connect to %s:%d", argv[1],
+	int rc = zsocket_connect(router, "tcp://%s:%d", argv[1], port);
+	if (rc != 0) {
+		printf("The ovn_server could't connect to %s:%d", argv[1],
 		       port);
+		exit(-1);
 	}
 	//initialize the database
 	ovndb_t *ovndb;
 	ovndb_init(&ovndb);
 
-	zpoller_t *poller = zpoller_new(router);
 	while (1) {
-		void *which = zpoller_wait(poller, -1);
-		if (!zpoller_terminated(poller)) {
-			return -1;
-		}
-		if (!zpoller_expired(poller)) {
+		process_request(router, ovndb);
 
-			if (which == router) {
-				process_request(router, ovndb);
-
-			}
-		}
 	}
 
 //at the end    
