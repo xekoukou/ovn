@@ -87,9 +87,7 @@ module.exports = {
                     type: "array",
                     minItems: 1,
                     items: {
-                        type: "object",
-                        "$ref": "node.js#/node"
-
+                        type: "object"
                     }
                 }
             },
