@@ -39,8 +39,11 @@ void ovndb_init(ovndb_t ** ovndb);
 void ovndb_close(ovndb_t * ovndb);
 
 int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node);
+int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link);
 
-char *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id, int64_t * length);
+json_t *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id);
 
 void ovndb_delete_node(ovndb_t * ovndb, int64_t id);
+
+int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link);
 #endif

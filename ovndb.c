@@ -115,6 +115,53 @@ int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node)
 
 }
 
+int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link)
+{
+
+	char *errptr = NULL;
+	int64_t id = ovndb->nextId;
+	json_object_set_new(link, "id", json_integer(id));
+	int64_t origId = json_integer_value(json_object_get(link, "origId"));
+	int64_t endId = json_integer_value(json_object_get(link, "endId"));
+
+	json_t *origNode = ovndb_retrieve_node(ovndb, origId);
+	json_t *endNode = ovndb_retrieve_node(ovndb, endId);
+
+	json_array_append(json_object_get(origNode, "output"), link);
+	json_array_append_new(json_object_get(endNode, "input"), link);
+
+	const char *str_origNode = json_dumps(origNode, JSON_COMPACT);
+	const char *str_endNode = json_dumps(endNode, JSON_COMPACT);
+
+	//update the last id 
+	leveldb_writebatch_t *wb = leveldb_writebatch_create();
+	int64_t zero = 0;
+	leveldb_writebatch_put(wb, (const char *)&zero, sizeof(int64_t),
+			       (const char *)&(ovndb->nextId), sizeof(int64_t));
+
+	leveldb_writebatch_put(wb, (const char *)&(origId),
+			       sizeof(int64_t), str_origNode,
+			       strlen(str_origNode) + 1);
+	leveldb_writebatch_put(wb, (const char *)&(endId), sizeof(int64_t),
+			       str_endNode, strlen(str_endNode) + 1);
+
+	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
+	leveldb_writebatch_destroy(wb);
+	ovndb->nextId++;
+	free((char *)str_origNode);
+	free((char *)str_endNode);
+
+	json_decref(origNode);
+	json_decref(endNode);
+
+	if (errptr) {
+		printf("\n%s", errptr);
+		exit(1);
+	}
+	return id;
+
+}
+
 void ovndb_delete_node(ovndb_t * ovndb, int64_t id)
 {
 
@@ -130,7 +177,7 @@ void ovndb_delete_node(ovndb_t * ovndb, int64_t id)
 }
 
 //the returned value must be copied, it is temporary
-char *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id, int64_t * length)
+json_t *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id)
 {
 	char *errptr;
 	size_t vallen = sizeof(int64_t);
@@ -139,7 +186,10 @@ char *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id, int64_t * length)
 	    leveldb_get(ovndb->db, ovndb->readoptions, (const char *)&id,
 			sizeof(int64_t),
 			&vallen, &errptr);
-	*length = vallen;
-	return tempval;
+
+	json_error_t jerror;
+	json_t *node = json_loads(strdup(tempval), 0, &jerror);
+
+	return node;
 
 }

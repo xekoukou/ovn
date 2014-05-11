@@ -10,71 +10,84 @@ module.exports = {
                 type: "object",
                 oneof: [{
                     "$ref": "#/definitions/retrieveRequest"
+                }, {
                     "$ref": "#/definitions/newNodeRequest"
+                }, {
+                    "$ref": "../clientNodejsProtocol.js#/request/definitions/newLink"
                 }]
             }
 
         },
-        required: ["requestId", "request"]
+        required: ["requestId", "request"],
 
+        definitions: {
 
-    },
-
-    response: {
-        type: "object",
-        properties: {
-            requestId: {
-                type: "integer"
-            }
-            response: {
+            retrieveRequest: {
                 type: "object",
-                oneof: [{
-                    "$ref": "#/definitions/retrieveResponse"
-                    "$ref": "#/definitions/newNodeResponse"
-                }]
-            }
-        },
-        required: ["requestId", "response"]
+                properties: {
+                    "type": {
+                        "enum": ["retrieveRequest"]
+                    },
+
+                    idArray: {
+                        type: "array",
+                        minItems: 1,
+                        items: {
+                            type: "integer"
+                        }
 
 
-    },
+                    },
+                    required: ["type", "idArray"]
+                }
+            },
+            newNodeRequest: {
+                type: "object",
+                properties: {
+                    "type": {
+                        "enum": ["newNode"]
+                    },
 
-    definitions: [
-
-        retrieveRequest: {
-            type: "object",
-            properties: {
-                "type": {
-                    "enum": ["retrieveRequest"]
-                },
-
-                idArray: {
-                    type: "array",
-                    minItems: 1,
-                    items: {
-                        type: "integer"
+                    node: {
+                        type: "object",
                     }
 
 
                 },
-                required: ["type", "idArray"]
+                required: ["type", "node"]
             }
-        },
-        newNodeRequest: {
-            type: "object",
-            properties: {
-                "type": {
-                    "enum": ["newNodeRequest"]
-                },
+        }
 
-                node: {
-                    type: "object",
+
+    }
+
+
+},
+
+response: {
+    type: "object",
+    properties: {
+        requestId: {
+            type: "integer"
+        }
+        response: {
+            type: "object",
+            oneof: [{
+                    "$ref": "#/definitions/retrieveResponse"
+                }, {
+                    "$ref": "#/definitions/newNodeResponse"
+                }, {
+                    "$ref": "#/definitions/newLinkResponse"
                 }
 
+            ]
+        }
+    },
+    required: ["requestId", "response"],
 
-            },
-            required: ["type", "node"]
-        },
+
+    definitions: {
+
         retrieveResponse: {
 
             type: "object",
@@ -108,8 +121,26 @@ module.exports = {
             },
             required: ["type", "id"]
 
+        },
+        newLinkResponse: {
+            type: "object",
+            properties: {
+                "type": {
+                    "enum": ["newLinkResponse"]
+                },
+
+                id: {
+                    type: "integer",
+                }
+
+
+            },
+            required: ["type", "id"]
+
         }
-    ]
+
+    }
+}
 
 
 }

@@ -2,10 +2,23 @@
 #include<czmq.h>
 #include<jansson.h>
 
+json_t *process_newLinkRequest(ovndb_t * ovndb, json_t * request)
+{
+	json_t *link = json_object_get(request, "link");
+
+	int64_t id = ovndb_save_link(ovndb, link);
+	json_t *response = json_object();
+	json_object_set_new(response, "type", json_string("newLinkResponse"));
+	json_object_set_new(response, "id", json_integer(id));
+
+	return response;
+}
+
 json_t *process_newNodeRequest(ovndb_t * ovndb, json_t * request)
 {
 
 	int64_t id = ovndb_insert_node(ovndb, json_object_get(request, "node"));
+
 	json_t *response = json_object();
 	json_object_set_new(response, "type", json_string("newNodeResponse"));
 	json_object_set_new(response, "id", json_integer(id));
@@ -35,11 +48,8 @@ json_t *process_retrieveRequest(ovndb_t * ovndb, json_t * request)
 	int i;
 	for (i = 0; i < size; i++) {
 		int64_t id = json_integer_value(json_array_get(ids, i));
-		int64_t length;
-		char *node_str = ovndb_retrieve_node(ovndb, id, &length);
+		json_t *node = ovndb_retrieve_node(ovndb, id);
 
-		json_error_t error;
-		json_t *node = json_loads(strdup(node_str), 0, &error);
 		json_array_append(nodeArray, node);
 
 	}
@@ -80,10 +90,18 @@ void process_request(void *router, ovndb_t * ovndb)
 			response = process_delete(ovndb, request);
 		} else {
 
-			if (strcmp(type, "newNodeRequest") == 0) {
+			if (strcmp(type, "newNode") == 0) {
 				response =
 				    process_newNodeRequest(ovndb, request);
 
+			} else {
+
+				if (strcmp(type, "newLink") == 0) {
+					response =
+					    process_newLinkRequest(ovndb,
+								   request);
+
+				}
 			}
 		}
 	}
