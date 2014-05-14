@@ -2,6 +2,19 @@
 #include<czmq.h>
 #include<jansson.h>
 
+json_t *process_delLinkRequest(ovndb_t * ovndb, json_t * request)
+{
+	json_t *link = json_object_get(request, "link");
+
+	ovndb_delete_link(ovndb, link);
+	json_t *response = json_object();
+	json_object_set_new(response, "type", json_string("delLinkResponse"));
+	json_object_set_new(response, "ack", json_string("ok"));
+
+	return response;
+
+}
+
 json_t *process_newLinkRequest(ovndb_t * ovndb, json_t * request)
 {
 	json_t *link = json_object_get(request, "link");
@@ -101,27 +114,37 @@ void process_request(void *router, ovndb_t * ovndb)
 					    process_newLinkRequest(ovndb,
 								   request);
 
+				} else {
+
+					if (strcmp(type, "delLink") == 0) {
+						response =
+						    process_delLinkRequest
+						    (ovndb, request);
+
+					}
+
 				}
 			}
 		}
 	}
+	if (response) {
+		json_t *response_json = json_object();
+		json_object_set(response_json, "requestId",
+				json_object_get(request_json, "requestId"));
+		json_object_set_new(response_json, "response", response);
 
-	json_t *response_json = json_object();
-	json_object_set(response_json, "requestId",
-			json_object_get(request_json, "requestId"));
-	json_object_set_new(response_json, "response", response);
+		zmsg_t *res = zmsg_new();
+		char *res_json_str = json_dumps(response_json, JSON_COMPACT);
+		printf("\novn sent: %s\n", res_json_str);
 
-	zmsg_t *res = zmsg_new();
-	char *res_json_str = json_dumps(response_json, JSON_COMPACT);
-	printf("\novn sent: %s\n", res_json_str);
+		zmsg_addstr(res, res_json_str);
+		free(res_json_str);
+		json_decref(response_json);
+		json_decref(request_json);
 
-	zmsg_addstr(res, res_json_str);
-	free(res_json_str);
-	json_decref(response_json);
-	json_decref(request_json);
-
-	zmsg_wrap(res, address);
-	zmsg_send(&res, router);
+		zmsg_wrap(res, address);
+		zmsg_send(&res, router);
+	}
 }
 
 int main(int argc, char *argv[])

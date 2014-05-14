@@ -14,6 +14,8 @@ module.exports = {
                     "$ref": "#/definitions/newNodeRequest"
                 }, {
                     "$ref": "../clientNodejsProtocol.js#/request/definitions/newLink"
+                }, {
+                    "$ref": "../clientNodejsProtocol.js#/request/definitions/delLink"
                 }]
             }
 
@@ -78,6 +80,8 @@ response: {
                     "$ref": "#/definitions/newNodeResponse"
                 }, {
                     "$ref": "#/definitions/newLinkResponse"
+                }, {
+                    "$ref": "#/definitions/delLinkResponse"
                 }
 
             ]
@@ -137,7 +141,22 @@ response: {
             },
             required: ["type", "id"]
 
+        },
+        delLinkResponse: {
+            type: "object",
+            properties: {
+                "type": {
+                    "enum": ["delLinkResponse"]
+                },
+
+                ack: {
+                    "enum": ["ok", "fail"]
+                }
+            },
+            required: ["type", "id"]
+
         }
+
 
     }
 }

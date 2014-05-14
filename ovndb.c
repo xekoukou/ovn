@@ -115,6 +115,60 @@ int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node)
 
 }
 
+void ovndb_delete_link(ovndb_t * ovndb, json_t * link)
+{
+
+	char *errptr = NULL;
+	int64_t origId = json_integer_value(json_object_get(link, "origId"));
+	int64_t endId = json_integer_value(json_object_get(link, "endId"));
+	int64_t id = json_integer_value(json_object_get(link, "id"));
+
+	json_t *origNode = ovndb_retrieve_node(ovndb, origId);
+	json_t *endNode = ovndb_retrieve_node(ovndb, endId);
+
+	json_t *origOut = json_object_get(origNode, "output");
+	json_t *endIn = json_object_get(endNode, "input");
+
+	size_t index;
+	json_t *value;
+
+	json_array_foreach(origOut, index, value) {
+		int64_t id2 = json_integer_value(json_object_get(value, "id"));
+		if (id2 == id) {
+			json_array_remove(origOut, index);
+		}
+	}
+	json_array_foreach(endIn, index, value) {
+		int64_t id2 = json_integer_value(json_object_get(value, "id"));
+		if (id2 == id) {
+			json_array_remove(endIn, index);
+		}
+	}
+
+	const char *str_origNode = json_dumps(origNode, JSON_COMPACT);
+	const char *str_endNode = json_dumps(endNode, JSON_COMPACT);
+
+	leveldb_writebatch_t *wb = leveldb_writebatch_create();
+	leveldb_writebatch_put(wb, (const char *)&(origId),
+			       sizeof(int64_t), str_origNode,
+			       strlen(str_origNode) + 1);
+	leveldb_writebatch_put(wb, (const char *)&(endId), sizeof(int64_t),
+			       str_endNode, strlen(str_endNode) + 1);
+
+	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
+	leveldb_writebatch_destroy(wb);
+	free((char *)str_origNode);
+	free((char *)str_endNode);
+
+	json_decref(origNode);
+	json_decref(endNode);
+
+	if (errptr) {
+		printf("\n%s", errptr);
+		exit(1);
+	}
+}
+
 int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link)
 {
 
