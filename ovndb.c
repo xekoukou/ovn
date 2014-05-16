@@ -115,7 +115,7 @@ int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node)
 
 }
 
-void ovndb_delete_link(ovndb_t * ovndb, json_t * link)
+int ovndb_delete_link(ovndb_t * ovndb, json_t * link)
 {
 
 	char *errptr = NULL;
@@ -126,24 +126,35 @@ void ovndb_delete_link(ovndb_t * ovndb, json_t * link)
 	json_t *origNode = ovndb_retrieve_node(ovndb, origId);
 	json_t *endNode = ovndb_retrieve_node(ovndb, endId);
 
+	if (!(origNode && endNode))
+		return 0;
+
 	json_t *origOut = json_object_get(origNode, "output");
 	json_t *endIn = json_object_get(endNode, "input");
 
 	size_t index;
 	json_t *value;
-
+	int found_it = 0;
 	json_array_foreach(origOut, index, value) {
 		int64_t id2 = json_integer_value(json_object_get(value, "id"));
-		if (id2 == id) {
+		int64_t nid =
+		    json_integer_value(json_object_get(value, "endId"));
+		if ((id2 == id) && (endId == nid)) {
 			json_array_remove(origOut, index);
+			found_it = 1;
 		}
 	}
 	json_array_foreach(endIn, index, value) {
 		int64_t id2 = json_integer_value(json_object_get(value, "id"));
-		if (id2 == id) {
+		int64_t nid =
+		    json_integer_value(json_object_get(value, "origId"));
+		if ((id2 == id) && (origId == nid)) {
 			json_array_remove(endIn, index);
+			found_it = 1;
 		}
 	}
+	if (!found_it)
+		return 0;
 
 	const char *str_origNode = json_dumps(origNode, JSON_COMPACT);
 	const char *str_endNode = json_dumps(endNode, JSON_COMPACT);
@@ -167,6 +178,8 @@ void ovndb_delete_link(ovndb_t * ovndb, json_t * link)
 		printf("\n%s", errptr);
 		exit(1);
 	}
+
+	return 1;
 }
 
 int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link)
@@ -177,9 +190,14 @@ int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link)
 	json_object_set_new(link, "id", json_integer(id));
 	int64_t origId = json_integer_value(json_object_get(link, "origId"));
 	int64_t endId = json_integer_value(json_object_get(link, "endId"));
+	if (origId == endId)
+		return 0;
 
 	json_t *origNode = ovndb_retrieve_node(ovndb, origId);
 	json_t *endNode = ovndb_retrieve_node(ovndb, endId);
+
+	if (!(origNode && endNode))
+		return 0;
 
 	json_array_append(json_object_get(origNode, "output"), link);
 	json_array_append_new(json_object_get(endNode, "input"), link);
@@ -249,8 +267,13 @@ json_t *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id)
 			&vallen, &errptr);
 
 	json_error_t jerror;
-	json_t *node = json_loads(strdup(tempval), 0, &jerror);
+	if (tempval) {
+		json_t *node = json_loads(strdup(tempval), 0, &jerror);
 
-	return node;
+		return node;
+	} else {
+
+		return NULL;
+	}
 
 }

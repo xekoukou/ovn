@@ -136,14 +136,18 @@ response: {
                 "type": {
                     "enum": ["newLinkResponse"]
                 },
-
+//id is returned only when the operation was a success
                 id: {
                     type: "integer",
-                }
+                },
+
+                ack:{
+               enum:["ok","fail"]
+}
 
 
             },
-            required: ["type", "id"]
+            required: ["type", "ack"]
 
         },
         delLinkResponse: {
@@ -157,7 +161,7 @@ response: {
                     "enum": ["ok", "fail"]
                 }
             },
-            required: ["type", "id"]
+            required: ["type", "ack"]
 
         },
         delNodeResponse: {

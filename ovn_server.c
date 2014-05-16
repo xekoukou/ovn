@@ -6,11 +6,15 @@ json_t *process_delLinkRequest(ovndb_t * ovndb, json_t * request)
 {
 	json_t *link = json_object_get(request, "link");
 
-	ovndb_delete_link(ovndb, link);
+	int ok = ovndb_delete_link(ovndb, link);
 	json_t *response = json_object();
 	json_object_set_new(response, "type", json_string("delLinkResponse"));
-	json_object_set_new(response, "ack", json_string("ok"));
+	if (ok) {
+		json_object_set_new(response, "ack", json_string("ok"));
+	} else {
+		json_object_set_new(response, "ack", json_string("fail"));
 
+	}
 	return response;
 
 }
@@ -21,9 +25,17 @@ json_t *process_newLinkRequest(ovndb_t * ovndb, json_t * request)
 
 	int64_t id = ovndb_save_link(ovndb, link);
 	json_t *response = json_object();
-	json_object_set_new(response, "type", json_string("newLinkResponse"));
-	json_object_set_new(response, "id", json_integer(id));
+	if (id) {
+		json_object_set_new(response, "type",
+				    json_string("newLinkResponse"));
+		json_object_set_new(response, "id", json_integer(id));
+		json_object_set_new(response, "ack", json_string("ok"));
 
+	} else {
+		json_object_set_new(response, "type",
+				    json_string("newLinkResponse"));
+		json_object_set_new(response, "ack", json_string("fail"));
+	}
 	return response;
 }
 
