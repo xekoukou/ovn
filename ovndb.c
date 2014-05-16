@@ -216,18 +216,25 @@ int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link)
 
 }
 
-void ovndb_delete_node(ovndb_t * ovndb, int64_t id)
+int ovndb_delete_node(ovndb_t * ovndb, int64_t id)
 {
+	json_t *node = ovndb_retrieve_node(ovndb, id);
+	if (json_array_size(json_object_get(node, "input"))
+	    || json_array_size(json_object_get(node, "output"))) {
+		json_decref(node);
+		return 0;
+	} else {
+		char *errptr = NULL;
+		leveldb_delete(ovndb->db, ovndb->writeoptions,
+			       (const char *)&id, sizeof(int64_t), &errptr);
 
-	char *errptr = NULL;
-	leveldb_delete(ovndb->db, ovndb->writeoptions, (const char *)&id,
-		       sizeof(int64_t), &errptr);
-
-	if (errptr) {
-		printf("\n%s", errptr);
-		exit(1);
+		if (errptr) {
+			printf("\n%s", errptr);
+			exit(1);
+		}
+		json_decref(node);
+		return 1;
 	}
-
 }
 
 //the returned value must be copied, it is temporary

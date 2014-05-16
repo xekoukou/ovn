@@ -41,14 +41,16 @@ json_t *process_newNodeRequest(ovndb_t * ovndb, json_t * request)
 
 json_t *process_delete(ovndb_t * ovndb, json_t * request)
 {
-	json_t *ids = json_object_get(request, "ids");
-	int64_t size = json_array_size(ids);
-	int i;
-	for (i = 0; i < size; i++) {
-		int64_t id = json_integer_value(json_array_get(ids, i));
-		ovndb_delete_node(ovndb, id);
+	int64_t id = json_integer_value(json_object_get(request, "id"));
+	json_t *response = json_object();
+	json_object_set_new(response, "type", json_string("delNode"));
+	if (ovndb_delete_node(ovndb, id)) {
+		json_object_set_new(response, "ack", json_string("ok"));
+	} else {
+		json_object_set_new(response, "ack", json_string("fail"));
 	}
-	//send a response  TODO
+
+	return response;
 
 }
 
@@ -98,7 +100,7 @@ void process_request(void *router, ovndb_t * ovndb)
 
 	} else {
 
-		if (strcmp(type, "deleteRequest") == 0) {
+		if (strcmp(type, "delNode") == 0) {
 
 			response = process_delete(ovndb, request);
 		} else {

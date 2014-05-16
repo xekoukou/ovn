@@ -43,7 +43,8 @@ int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link);
 
 json_t *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id);
 
-void ovndb_delete_node(ovndb_t * ovndb, int64_t id);
+//returns 1 if the node was deleted
+int ovndb_delete_node(ovndb_t * ovndb, int64_t id);
 
 void ovndb_delete_link(ovndb_t * ovndb, json_t * link);
 
