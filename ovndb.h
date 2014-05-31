@@ -49,4 +49,6 @@ int ovndb_delete_node(ovndb_t * ovndb, int64_t id);
 int ovndb_delete_link(ovndb_t * ovndb, json_t * link);
 
 int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link);
+
+int ovndb_new_node_data(ovndb_t * ovndb, int64_t id, json_t * new_node_data);
 #endif

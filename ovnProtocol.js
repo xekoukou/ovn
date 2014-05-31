@@ -18,6 +18,8 @@ module.exports = {
                     "$ref": "../clientNodejsProtocol.js#/request/definitions/delLink"
                 }, {
                     "$ref": "../clientNodejsProtocol.js#/request/definitions/delNode"
+                }, {
+                    "$ref": "../clientNodejsProtocol.js#/request/definitions/newNodeData"
                 }]
             }
 
@@ -86,6 +88,8 @@ response: {
                     "$ref": "#/definitions/delLinkResponse"
                 }, {
                     "$ref": "#/definitions/delNodeResponse"
+                }, {
+                    "$ref": "#/definitions/newNodeDataResponse"
                 }
 
             ]
@@ -136,14 +140,14 @@ response: {
                 "type": {
                     "enum": ["newLinkResponse"]
                 },
-//id is returned only when the operation was a success
+                //id is returned only when the operation was a success
                 id: {
                     type: "integer",
                 },
 
-                ack:{
-               enum:["ok","fail"]
-}
+                ack: {
+                    enum: ["ok", "fail"]
+                }
 
 
             },
@@ -175,12 +179,23 @@ response: {
                 }
             },
             required: ["ack"]
+        },
+        newNodeDataResponse: {
+            type: "object",
+            properties: {
+                "type": {
+                    "enum": ["newNodeData"]
+                },
+
+                ack: {
+                    enum: ["ok", "fail"]
+                }
+
+
+            },
+            required: ["type", "ack"]
+
         }
 
-
-
     }
-}
-
-
 }

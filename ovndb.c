@@ -23,6 +23,9 @@
 #include<stdlib.h>
 #include<stdio.h>
 
+#define CONTENT 1
+#define NET_LINK 2
+
 void ovndb_init(ovndb_t ** ovndb)
 {
 	*ovndb = malloc(sizeof(ovndb_t));
@@ -65,23 +68,47 @@ void ovndb_close(ovndb_t * ovndb)
 
 }
 
-//TODO check that this code works
-void ovndb_update_node(ovndb_t * ovndb, json_t * node)
+int ovndb_new_node_data(ovndb_t * ovndb, int64_t id, json_t * new_node_data)
 {
 
 	char *errptr = NULL;
-	int64_t id = json_integer_value(json_object_get(node, "id"));
+	json_t *old_node = ovndb_retrieve_node(ovndb, id);
+	if (!old_node) {
+		return 0;
+	}
+	json_t *summary = json_object_get(new_node_data,
+					  "summary");
+	json_t *content = json_object_get(new_node_data,
+					  "content");
 
-	const char *str_node = json_dumps(node, JSON_COMPACT);
-	leveldb_put(ovndb->db,
-		    ovndb->writeoptions, (const char *)&id,
-		    sizeof(int64_t), (const char *)
-		    str_node, 2 * sizeof(int64_t), &errptr);
+	leveldb_writebatch_t *wb = leveldb_writebatch_create();
+	if (summary != NULL) {
+		json_object_set(json_object_get(old_node, "nodeData"),
+				"summary", summary);
+		const char *str_node = json_dumps(old_node, JSON_COMPACT);
+		leveldb_writebatch_put(wb, (const char *)&id, sizeof(int64_t),
+				       str_node, strlen(str_node));
+		free((char *)str_node);
+	}
+	char key[9];
+	if (content != NULL) {
+		const char *str = json_dumps(content, JSON_COMPACT);
+		memcpy(key, &id, sizeof(int64_t));
+		key[9] = CONTENT;
+		leveldb_writebatch_put(wb, (const char *)key, 9,
+				       str, strlen(str));
+
+		free((char *)str);
+	}
+	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
+	leveldb_writebatch_destroy(wb);
 
 	if (errptr) {
 		printf("\n%s", errptr);
 		exit(1);
 	}
+
+	return 1;
 
 }
 
@@ -100,7 +127,7 @@ int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node)
 			       (const char *)&(ovndb->nextId), sizeof(int64_t));
 
 	leveldb_writebatch_put(wb, (const char *)&(ovndb->nextId),
-			       sizeof(int64_t), str_node, strlen(str_node) + 1);
+			       sizeof(int64_t), str_node, strlen(str_node));
 
 	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
 	leveldb_writebatch_destroy(wb);
@@ -162,9 +189,9 @@ int ovndb_delete_link(ovndb_t * ovndb, json_t * link)
 	leveldb_writebatch_t *wb = leveldb_writebatch_create();
 	leveldb_writebatch_put(wb, (const char *)&(origId),
 			       sizeof(int64_t), str_origNode,
-			       strlen(str_origNode) + 1);
+			       strlen(str_origNode));
 	leveldb_writebatch_put(wb, (const char *)&(endId), sizeof(int64_t),
-			       str_endNode, strlen(str_endNode) + 1);
+			       str_endNode, strlen(str_endNode));
 
 	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
 	leveldb_writebatch_destroy(wb);
@@ -200,7 +227,7 @@ int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link)
 		return 0;
 
 	json_array_append(json_object_get(origNode, "output"), link);
-	json_array_append_new(json_object_get(endNode, "input"), link);
+	json_array_append(json_object_get(endNode, "input"), link);
 
 	const char *str_origNode = json_dumps(origNode, JSON_COMPACT);
 	const char *str_endNode = json_dumps(endNode, JSON_COMPACT);
@@ -213,9 +240,9 @@ int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link)
 
 	leveldb_writebatch_put(wb, (const char *)&(origId),
 			       sizeof(int64_t), str_origNode,
-			       strlen(str_origNode) + 1);
+			       strlen(str_origNode));
 	leveldb_writebatch_put(wb, (const char *)&(endId), sizeof(int64_t),
-			       str_endNode, strlen(str_endNode) + 1);
+			       str_endNode, strlen(str_endNode));
 
 	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
 	leveldb_writebatch_destroy(wb);
@@ -259,16 +286,20 @@ int ovndb_delete_node(ovndb_t * ovndb, int64_t id)
 json_t *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id)
 {
 	char *errptr;
-	size_t vallen = sizeof(int64_t);
+	size_t vallen = 0xffffffffffffffff;
 
-	char *tempval =
+	const char *tempval =
 	    leveldb_get(ovndb->db, ovndb->readoptions, (const char *)&id,
 			sizeof(int64_t),
 			&vallen, &errptr);
 
 	json_error_t jerror;
 	if (tempval) {
-		json_t *node = json_loads(strdup(tempval), 0, &jerror);
+		json_t *node = json_loadb(tempval, vallen, 0, &jerror);
+  if(!node){
+printf("ovndb_retrieve json error:%s",jerror.text);
+}
+free((void *)tempval);
 
 		return node;
 	} else {
