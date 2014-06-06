@@ -148,7 +148,9 @@ int ovndb_delete_link(ovndb_t * ovndb, json_t * link)
 	char *errptr = NULL;
 	int64_t origId = json_integer_value(json_object_get(link, "origId"));
 	int64_t endId = json_integer_value(json_object_get(link, "endId"));
-	int64_t id = json_integer_value(json_object_get(link, "id"));
+	int64_t id =
+	    json_integer_value(json_object_get
+			       (json_object_get(link, "linkData"), "id"));
 
 	json_t *origNode = ovndb_retrieve_node(ovndb, origId);
 	json_t *endNode = ovndb_retrieve_node(ovndb, endId);
@@ -163,24 +165,30 @@ int ovndb_delete_link(ovndb_t * ovndb, json_t * link)
 	json_t *value;
 	int found_it = 0;
 	json_array_foreach(origOut, index, value) {
-		int64_t id2 = json_integer_value(json_object_get(value, "id"));
+		int64_t id2 =
+		    json_integer_value(json_object_get
+				       (json_object_get(value, "linkData"),
+					"id"));
 		int64_t nid =
 		    json_integer_value(json_object_get(value, "endId"));
 		if ((id2 == id) && (endId == nid)) {
 			json_array_remove(origOut, index);
-			found_it = 1;
+			found_it++;
 		}
 	}
 	json_array_foreach(endIn, index, value) {
-		int64_t id2 = json_integer_value(json_object_get(value, "id"));
+		int64_t id2 =
+		    json_integer_value(json_object_get
+				       (json_object_get(value, "linkData"),
+					"id"));
 		int64_t nid =
 		    json_integer_value(json_object_get(value, "origId"));
 		if ((id2 == id) && (origId == nid)) {
 			json_array_remove(endIn, index);
-			found_it = 1;
+			found_it++;
 		}
 	}
-	if (!found_it)
+	if (found_it != 2)
 		return 0;
 
 	const char *str_origNode = json_dumps(origNode, JSON_COMPACT);
@@ -213,14 +221,50 @@ int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link)
 {
 
 	char *errptr = NULL;
-	int64_t id = ovndb->nextId;
-	json_object_set_new(link, "id", json_integer(id));
+
+//new linkData or existing data
+
 	int64_t origId = json_integer_value(json_object_get(link, "origId"));
+	json_t *origNode = ovndb_retrieve_node(ovndb, origId);
+	int found_it = 0;
+
+	int64_t tid =
+	    json_integer_value(json_object_get
+			       (json_object_get(link, "linkData"), "id"));
+	int64_t id;
+
+	if (tid != -1) {
+//the same data must be at the same node
+		json_t *origOut = json_object_get(origNode, "output");
+
+		size_t index;
+		json_t *value;
+		json_array_foreach(origOut, index, value) {
+			int64_t id2 =
+			    json_integer_value(json_object_get
+					       (json_object_get
+						(value, "linkData"),
+						"id"));
+			if (id2 == tid) {
+				found_it = 1;
+				id = tid;
+			}
+		}
+
+		if (!found_it) {
+			return 0;
+		}
+
+	} else {
+		id = ovndb->nextId;
+		json_object_set_new(json_object_get(link, "linkData"), "id",
+				    json_integer(id));
+	}
+
 	int64_t endId = json_integer_value(json_object_get(link, "endId"));
 	if (origId == endId)
 		return 0;
 
-	json_t *origNode = ovndb_retrieve_node(ovndb, origId);
 	json_t *endNode = ovndb_retrieve_node(ovndb, endId);
 
 	if (!(origNode && endNode))
@@ -296,10 +340,10 @@ json_t *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id)
 	json_error_t jerror;
 	if (tempval) {
 		json_t *node = json_loadb(tempval, vallen, 0, &jerror);
-  if(!node){
-printf("ovndb_retrieve json error:%s",jerror.text);
-}
-free((void *)tempval);
+		if (!node) {
+			printf("ovndb_retrieve json error:%s", jerror.text);
+		}
+		free((void *)tempval);
 
 		return node;
 	} else {

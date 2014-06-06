@@ -22,6 +22,26 @@ json_t *process_newNodeDataRequest(ovndb_t * ovndb, json_t * request)
 	return response;
 }
 
+json_t *process_newLinkDataRequest(ovndb_t * ovndb, json_t * request)
+{
+	json_t *link = json_object_get(request, "link");
+	int64_t id = 0;
+	id = ovndb_save_link(ovndb, link);
+	json_t *response = json_object();
+	if (id) {
+		json_object_set_new(response, "type",
+				    json_string("newLinkDataResponse"));
+		json_object_set_new(response, "ack", json_string("ok"));
+
+	} else {
+		json_object_set_new(response, "type",
+				    json_string("newLinkDataResponse"));
+		json_object_set_new(response, "ack", json_string("fail"));
+	}
+	return response;
+
+}
+
 json_t *process_delLinkRequest(ovndb_t * ovndb, json_t * request)
 {
 	json_t *link = json_object_get(request, "link");
@@ -125,45 +145,21 @@ void process_request(void *router, ovndb_t * ovndb)
 	json_t *request = json_object_get(request_json, "request");
 	const char *type = json_string_value(json_object_get(request, "type"));
 	json_t *response;
-	if (strcmp(type, "retrieveRequest") == 0) {
+	if (strcmp(type, "retrieveRequest") == 0)
 		response = process_retrieveRequest(ovndb, request);
-	} else {
+	else if (strcmp(type, "delNode") == 0)
+		response = process_delete(ovndb, request);
+	else if (strcmp(type, "newNode") == 0)
+		response = process_newNodeRequest(ovndb, request);
+	else if (strcmp(type, "newLink") == 0)
+		response = process_newLinkRequest(ovndb, request);
+	else if (strcmp(type, "delLink") == 0)
+		response = process_delLinkRequest(ovndb, request);
+	else if (strcmp(type, "newNodeData") == 0)
+		response = process_newNodeDataRequest(ovndb, request);
+	else if (strcmp(type, "newLinkData") == 0)
+		response = process_newLinkDataRequest(ovndb, request);
 
-		if (strcmp(type, "delNode") == 0) {
-
-			response = process_delete(ovndb, request);
-		} else {
-
-			if (strcmp(type, "newNode") == 0) {
-				response =
-				    process_newNodeRequest(ovndb, request);
-			} else {
-
-				if (strcmp(type, "newLink") == 0) {
-					response =
-					    process_newLinkRequest(ovndb,
-								   request);
-				} else {
-
-					if (strcmp(type, "delLink") == 0) {
-						response =
-						    process_delLinkRequest
-						    (ovndb, request);
-					} else {
-
-						if (strcmp(type, "newNodeData")
-						    == 0) {
-							response =
-							    process_newNodeDataRequest
-							    (ovndb, request);
-						}
-
-					}
-
-				}
-			}
-		}
-	}
 	if (response) {
 		json_t *response_json = json_object();
 		json_object_set(response_json, "requestId",
