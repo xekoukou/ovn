@@ -1,0 +1,10 @@
+libboost 1.55
+
+libssl2-dev
+
+cpp-driver
+
+nacl
+http://hyperelliptic.org/nacl/nacl-20110221.tar.bz2
+
+lib_sha512
