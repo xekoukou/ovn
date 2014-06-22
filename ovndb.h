@@ -20,22 +20,54 @@
 #ifndef OVNDB_H
 #define OVNDB_H
 
-//leveldb
-#include<leveldb/c.h>
 #include<jansson.h>
+#include<cassandra.h>
 
-typedef struct {
-	int64_t nextId;
-	leveldb_t *db;
-	leveldb_options_t *options;
-	leveldb_readoptions_t *readoptions;
-	leveldb_writeoptions_t *writeoptions;
+#define NUM_CONCURRENT_REQUESTS 4096
+#define SLEEP_MS 5
 
-} ovndb_t;
+//multiple futures per request can happen concurrently
+//this is an interface, others structs need to cast into it.
+struct db_request_t {
+	int state;
+	int conq;
+	CassFuture **future;
+};
 
-void ovndb_init(ovndb_t ** ovndb);
+typedef struct db_request_t db_request_t;
 
-//sleep a few seconds after
+struct db_retrieve_node_t {
+	int state;
+	int conq;
+	CassFuture **future;
+	int64_t ancestorId;
+	int64_t id;
+};
+
+typedef struct db_retrieve_node_t db_retrieve_node_t;
+
+struct db_new_node_t {
+        int state;
+        int conq;
+        CassFuture **future;
+        json_t *node;
+};
+
+typedef struct db_new_node_t db_new_node_t;
+
+
+struct ovndb_t {
+	CassCluster *cluster;
+	CassSession *session;
+	int64_t ordered_id;
+	char hist_id[128];
+	const CassPrepared *prepared[10];
+};
+
+typedef struct ovndb_t ovndb_t;
+
+void ovndb_init(ovndb_t ** ovndb, const char **contact_points, int numb);
+
 void ovndb_close(ovndb_t * ovndb);
 
 int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node);

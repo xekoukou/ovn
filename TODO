@@ -1,3 +1,2 @@
-check when id reaches its MAX value and stop the program from overwriting nodes
-
-if nodes do not exist for retrieve del link delNode, return a fail message
+USE PREPARED statements and
+do asynchronous requests

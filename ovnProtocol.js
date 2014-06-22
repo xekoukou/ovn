@@ -43,6 +43,13 @@ module.exports = {
                         items: {
                             type: "integer"
                         }
+                   ancestorIdArray: {
+                        type: "array",
+                        minItems: 1,
+                        items: {
+                            type: "integer"
+                        }
+
 
 
                     },
