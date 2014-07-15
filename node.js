@@ -7,13 +7,15 @@ module.exports = {
         type: "object",
         properties: {
             id: {
-                type: "integer"
+                type: "integer",
+                minimum:1 
             },
             hid: {
-                type: "string" //the sha2 of the previous historic identifier
+                type: "string" //the historic identifier
             },
             ancestorId: {
-                type: "integer"
+                type: "integer",
+                minimum:1
             },
             ancestorHid: {
                 type: "string"

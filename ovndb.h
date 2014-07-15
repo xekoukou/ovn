@@ -22,6 +22,9 @@
 
 #include<jansson.h>
 #include<cassandra.h>
+#include<czmq.h>
+#include"consensusInProtocol.h"
+#include"lib_sha512/sha512.h"
 
 #define NUM_CONCURRENT_REQUESTS 4096
 #define SLEEP_MS 5
@@ -47,33 +50,33 @@ struct db_retrieve_node_t {
 typedef struct db_retrieve_node_t db_retrieve_node_t;
 
 struct db_new_node_t {
-        int state;
-        int conq;
-        CassFuture **future;
-        json_t *node;
+	int state;
+	int conq;
+	CassFuture **future;
+	zmsg_t *consensus_msg;
 };
 
 typedef struct db_new_node_t db_new_node_t;
 
-
 struct ovndb_t {
 	CassCluster *cluster;
 	CassSession *session;
-	int64_t ordered_id;
-	char hist_id[128];
-	const CassPrepared *prepared[10];
+	const CassPrepared *prepared[8];
+	void *consensus_req_socket;
 };
 
 typedef struct ovndb_t ovndb_t;
 
-void ovndb_init(ovndb_t ** ovndb, const char **contact_points, int numb);
+void ovndb_init(ovndb_t ** ovndb, const char **contact_points, int numb,
+		void *consensus_req_socket);
 
 void ovndb_close(ovndb_t * ovndb);
 
-int64_t ovndb_insert_node(ovndb_t * ovndb, json_t * node);
+int64_t ovndb_insert_node(ovndb_t * ovndb, db_new_node_t * request,
+			  int32_t * set_id, char *hid);
 int64_t ovndb_save_link(ovndb_t * ovndb, json_t * link);
 
-json_t *ovndb_retrieve_node(ovndb_t * ovndb, int64_t id);
+json_t *ovndb_retrieve_node(ovndb_t * ovndb, db_retrieve_node_t * request);
 
 //returns 1 if the node was deleted
 int ovndb_delete_node(ovndb_t * ovndb, int64_t id);

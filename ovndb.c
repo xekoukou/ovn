@@ -22,20 +22,16 @@
 #include<stdlib.h>
 #include<stdio.h>
 
-#define PR_INSERT_NODE_SUM  ovndb->prepared[1]
-#define PR_RETRIEVE_NODE_SUM  ovndb->prepared[2]
+#define PR_INSERT_NODE_DATA  ovndb->prepared[0]	//TODO
+#define PR_RETRIEVE_NODE_SUMMARY  ovndb->prepared[1]
+#define PR_RETRIEVE_NODE_CONTENT  ovndb->prepared[2]
 
-#define PR_INSERT_NODE_CONT  ovndb->prepared[3]
-#define PR_RETRIEVE_NODE_CONT  ovndb->prepared[4]
+#define PR_INSERT_LINK  ovndb->prepared[3]
+#define PR_RETRIEVE_LINK_SUMMARY  ovndb->prepared[4]
+#define PR_RETRIEVE_LINK_CONTENT  ovndb->prepared[5]
 
-#define PR_INSERT_LINK_SUM  ovndb->prepared[5]
-#define PR_RETRIEVE_LINK_SUM  ovndb->prepared[6]
-
-#define PR_INSERT_LINK_CONT  ovndb->prepared[7]
-#define PR_RETRIEVE_LINK_CONT  ovndb->prepared[8]
-
-#define PR_INSERT_NODE  ovndb->prepared[9]
-#define PR_RETRIEVE_NODE  ovndb->prepared[10]
+#define PR_INSERT_NODE  ovndb->prepared[6]	//the node is a new one, not an updated one
+#define PR_RETRIEVE_NODE  ovndb->prepared[7]
 
 void print_error(CassFuture * future)
 {
@@ -75,10 +71,12 @@ CassError connect_session(CassCluster * cluster, CassSession ** output)
 	return rc;
 }
 
-void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
+void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
+		void *consensus_req_socket)
 {
 	ovndb_t *ovndb = *ovndb_;
 	ovndb = calloc(1, sizeof(ovndb_t));
+	ovndb->consensus_req_socket = consensus_req_socket;
 
 	CassError rc = 0;
 	ovndb->cluster = create_cluster(contact_points, numb);
@@ -88,9 +86,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
 		exit(-1);
 	}
 //initialize prepared statements
+
 	CassString query =
 	    cass_string_init
-	    ("SELECT local_id,hist_id FROM ordered_id.graph WHERE ordered_id = 0 ");
+	    ("INSERT INTO ordered_id.node (ordered_id,local_id,hist_id,last_local_id,node_summary,node_content,parent_id,parent_hist_id ) VALUES (?,?,?,?,?,?,?,? ) ");
 	CassFuture *future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -104,12 +103,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
 
 	cass_future_free(future);
 
-//TODO initialize the rest
-
-	CassString query =
+	query =
 	    cass_string_init
-	    ("INSERT INTO ordered_id.node (ordered_id,local_id,hist_id,last_local_id,node_summary,node_content,parent_id,parent_hist_id ) VALUES (?,?,?,?,?,?,?,? ) ");
-	CassFuture *future = cass_session_prepare(ovndb->session, query);
+	    ("SELECT node_summary,last_local_id FROM ordered_id.node WHERE ordered_id = ? and local_id = ? ");
+	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
 	rc = cass_future_error_code(future);
@@ -122,10 +119,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
 
 	cass_future_free(future);
 
-	CassString query =
+	query =
 	    cass_string_init
-	    ("SELECT node_summary,last_local_id FROM ordered_id.node WHERE ordered_id = ? and local_id = ? ");
-	CassFuture *future = cass_session_prepare(ovndb->session, query);
+	    ("SELECT node_content,last_local_id FROM ordered_id.node WHERE ordered_id = ? and local_id IN (?,?) ");
+	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
 	rc = cass_future_error_code(future);
@@ -138,10 +135,26 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
 
 	cass_future_free(future);
 
-	CassString query =
+	query =
 	    cass_string_init
-	    ("SELECT node_content,last_local_id FROM ordered_id.node WHERE ordered_id = ? and local_id IN (?,?) ");
-	CassFuture *future = cass_session_prepare(ovndb->session, query);
+	    ("INSERT INTO ordered_id.link (ordered_id,local_id,hist_id,last_local_id,link_summary,link_content,parent_id,parent_hist_id ) VALUES (?,?,?i,?,?,?,?,? ) ");
+	future = cass_session_prepare(ovndb->session, query);
+	cass_future_wait(future);
+
+	rc = cass_future_error_code(future);
+	if (rc != CASS_OK) {
+		print_error(future);
+		exit(-1);
+	} else {
+		ovndb->prepared[3] = cass_future_get_prepared(future);
+	}
+
+	cass_future_free(future);
+
+	query =
+	    cass_string_init
+	    ("SELECT link_summary,last_local_id FROM ordered_id.link WHERE ordered_id = ? and local_id = ? ");
+	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
 	rc = cass_future_error_code(future);
@@ -154,10 +167,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
 
 	cass_future_free(future);
 
-	CassString query =
+	query =
 	    cass_string_init
-	    ("INSERT INTO ordered_id.link (ordered_id,local_id,hist_id,last_local_id,link_summary,link_content,parent_id,parent_hist_id ) VALUES (?,?,?i,?,?,?,?,? ) ");
-	CassFuture *future = cass_session_prepare(ovndb->session, query);
+	    ("SELECT link_content,last_local_id FROM ordered_id.link_content WHERE ordered_id = ? and local_id IN (?,?) ");
+	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
 	rc = cass_future_error_code(future);
@@ -170,10 +183,11 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
 
 	cass_future_free(future);
 
-	CassString query =
+//node is null at initialization
+	query =
 	    cass_string_init
-	    ("SELECT link_summary,last_local_id FROM ordered_id.link WHERE ordered_id = ? and local_id = ? ");
-	CassFuture *future = cass_session_prepare(ovndb->session, query);
+	    ("INSERT INTO ordered_id.graph (ordered_id,set_id,local_id,local_set_id,hist_id,last_local_id,last_set_id) VALUES (?,?,?,?,?,?,?) ");
+	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
 	rc = cass_future_error_code(future);
@@ -186,42 +200,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
 
 	cass_future_free(future);
 
-	CassString query =
-	    cass_string_init
-	    ("SELECT link_content,last_local_id FROM ordered_id.link_content WHERE ordered_id = ? and local_id IN (?,?) ");
-	CassFuture *future = cass_session_prepare(ovndb->session, query);
-	cass_future_wait(future);
-
-	rc = cass_future_error_code(future);
-	if (rc != CASS_OK) {
-		print_error(future);
-		exit(-1);
-	} else {
-		ovndb->prepared[8] = cass_future_get_prepared(future);
-	}
-
-	cass_future_free(future);
-
-	CassString query =
-	    cass_string_init
-	    ("INSERT INTO ordered_id.graph (ordered_id,local_id,hist_id,last_local_id,node,parent_id,parent_hist_id ) VALUES (?,?,?,?,?,?,? ) ");
-	CassFuture *future = cass_session_prepare(ovndb->session, query);
-	cass_future_wait(future);
-
-	rc = cass_future_error_code(future);
-	if (rc != CASS_OK) {
-		print_error(future);
-		exit(-1);
-	} else {
-		ovndb->prepared[9] = cass_future_get_prepared(future);
-	}
-
-	cass_future_free(future);
-
-	CassString query =
+	query =
 	    cass_string_init
 	    ("SELECT node,last_local_id FROM ordered_id.graph WHERE ordered_id = ? and local_id = ? ");
-	CassFuture *future = cass_session_prepare(ovndb->session, query);
+	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
 	rc = cass_future_error_code(future);
@@ -229,39 +211,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb)
 		print_error(future);
 		exit(-1);
 	} else {
-		ovndb->prepared[10] = cass_future_get_prepared(future);
+		ovndb->prepared[7] = cass_future_get_prepared(future);
 	}
 
 	cass_future_free(future);
-
-	CassStatement *statement = NULL;
-	future = NULL;
-
-	statement =
-	    cass_prepared_bind(ovndb->prepared[0], 0, CASS_CONSISTENCY_ONE);
-
-	future = cass_session_execute(ovndb->session, statement);
-	cass_future_wait(future);
-
-	rc = cass_future_error_code(future);
-	if (rc != CASS_OK) {
-		print_error(future);
-		exit(-1);
-	} else {
-		const CassResult *result = cass_future_get_result(future);
-		const CassRow *row = cass_result_first_row(result);
-		const CassValue *value = cass_row_get_column(row, 0);
-		cass_value_get_int64(value, &(ovndb->ordered_id));
-
-		value = cass_row_get_column(row, 1);
-		CassString string;
-		cass_value_get_string(value, &string);
-		memcpy(ovndb->hist_id, string.data, string.length);
-		cass_result_free(result);
-	}
-
-	cass_future_free(future);
-	cass_statement_free(statement);
 
 }
 
@@ -274,6 +227,7 @@ void ovndb_close(ovndb_t * ovndb)
 
 }
 
+/*
 int ovndb_new_node_data(ovndb_t * ovndb, int64_t id, json_t * new_node_data)
 {
 
@@ -317,38 +271,79 @@ int ovndb_new_node_data(ovndb_t * ovndb, int64_t id, json_t * new_node_data)
 	return 1;
 
 }
+*/
 
-int64_t ovndb_insert_node(ovndb_t * ovndb, db_new_node_t *db_new_node)
+#define OVNDB_NEW_NODE_GOT_CONSENSUS 1
+#define OVNDB_NEW_NODE_SENT_REQUEST 2
+
+int64_t ovndb_insert_node(ovndb_t * ovndb, db_new_node_t * request,
+			  int32_t * set_id, char *hid)
 {
 
+	switch (request->state) {
 
+	case 0:;
 
-	char *errptr = NULL;
-	int64_t id = ovndb->nextId;
-	json_object_set_new(node, "id", json_integer(id));
-	const char *str_node = json_dumps(node, JSON_COMPACT);
+		int32_t type = CONSENSUS_TYPE_GRAPH_NODE;
+		zmsg_t *msg = zmsg_new();
 
-	//update the last id 
-	leveldb_writebatch_t *wb = leveldb_writebatch_create();
-	int64_t zero = 0;
-	leveldb_writebatch_put(wb, (const char *)&zero, sizeof(int64_t),
-			       (const char *)&(ovndb->nextId), sizeof(int64_t));
+		zmsg_addmem(msg, &type, sizeof(int32_t));
+		zmsg_addmem(msg, NULL, 0);
 
-	leveldb_writebatch_put(wb, (const char *)&(ovndb->nextId),
-			       sizeof(int64_t), str_node, strlen(str_node));
+		zmsg_send(&msg, ovndb->consensus_req_socket);
+		request->state = OVNDB_NEW_NODE_GOT_CONSENSUS;
+		break;
 
-	leveldb_write(ovndb->db, ovndb->writeoptions, wb, &errptr);
-	leveldb_writebatch_destroy(wb);
-	ovndb->nextId++;
-	free((char *)str_node);
+	case OVNDB_NEW_NODE_GOT_CONSENSUS:;
 
-	if (errptr) {
-		printf("\n%s", errptr);
-		exit(1);
+		msg = request->consensus_msg;
+		zmsg_first(msg);
+		zframe_t *frame = zmsg_next(msg);
+		int64_t id;
+		memcpy(&id, zframe_data(frame), sizeof(int64_t));
+		frame = zmsg_next(msg);
+		memcpy(set_id, zframe_data(frame), sizeof(int32_t));
+		frame = zmsg_next(msg);
+		memcpy(hid, zframe_data(frame), SHA512_LENGTH);
+
+		CassStatement *statement;
+		CassFuture *future;
+
+		statement =
+		    cass_prepared_bind(PR_INSERT_NODE, 6, CASS_CONSISTENCY_ONE);
+
+		cass_statement_bind_int64(statement, 0, id);
+		cass_statement_bind_int64(statement, 1, *set_id);
+		cass_statement_bind_int64(statement, 3, id);
+		cass_statement_bind_int64(statement, 4, *set_id);
+		cass_statement_bind_string(statement, 5,
+					   cass_string_init2(hid,
+							     SHA512_LENGTH));
+		cass_statement_bind_int64(statement, 6, id);
+		cass_statement_bind_int64(statement, 7, *set_id);
+
+		future = cass_session_execute(ovndb->session, statement);
+
+		request->future = malloc(sizeof(CassFuture *));
+		request->future[request->conq] = future;
+		request->conq++;
+		request->state = OVNDB_NEW_NODE_SENT_REQUEST;
+		return id;
+
+		break;
+
+	case OVNDB_NEW_NODE_SENT_REQUEST:;
+		cass_future_free(request->future[request->conq - 1]);
+		request->conq--;
+		free(request->future);
+		break;
+
 	}
-	return id;
-
+//To remove warnings
+	return 0;
 }
+
+/*
 
 int ovndb_delete_link(ovndb_t * ovndb, json_t * link)
 {
@@ -534,17 +529,15 @@ int ovndb_delete_node(ovndb_t * ovndb, int64_t id)
 	}
 }
 
+*/
+
 #define OVNDB_RETRIEVE_NODE_GOT_IT 1
 
-json_t *ovndb_retrieve_node(ovndb_t * ovndb,
-			    db_retrieve_node_t * db_retrieve_node)
+json_t *ovndb_retrieve_node(ovndb_t * ovndb, db_retrieve_node_t * request)
 {
-	switch (db_retrieve_node->state) {
+	switch (request->state) {
 
-	case 0:
-		db_request_t * request =
-		    ovndb->db_requests.request[ovndb->db_requests.queue];
-		ovndb->db_requests.top++;
+	case 0:;
 
 		CassStatement *statement;
 		CassFuture *future;
@@ -553,20 +546,19 @@ json_t *ovndb_retrieve_node(ovndb_t * ovndb,
 		    cass_prepared_bind(PR_RETRIEVE_NODE_SUMMARY, 2,
 				       CASS_CONSISTENCY_ONE);
 
-		cass_statement_bind_int64(statement, 0,
-					  db_retrieve_node->ancestorId);
-		cass_statement_bind_int64(statement, 1, db_retrieve_node->id);
+		cass_statement_bind_int64(statement, 0, request->ancestorId);
+		cass_statement_bind_int64(statement, 1, request->id);
 		future = cass_session_execute(ovndb->session, statement);
 
 		request->future = malloc(sizeof(CassFuture *));
 		request->future[request->conq] = future;
 		request->conq++;
-		db_retrieve_node->state = OVNDB_RETRIEVE_NODE_GOT_IT;
+		request->state = OVNDB_RETRIEVE_NODE_GOT_IT;
 		break;
 
-	case OVNDB_RETRIEVE_NODE_GOT_IT:
+	case OVNDB_RETRIEVE_NODE_GOT_IT:;
 		CassError rc = 0;
-		CassFuture *future = request->future[request->conq - 1];
+		future = request->future[request->conq - 1];
 
 		rc = cass_future_error_code(future);
 		if (rc != CASS_OK) {
@@ -582,9 +574,9 @@ json_t *ovndb_retrieve_node(ovndb_t * ovndb,
 					      &node);
 
 			json_error_t jerror;
-			json_t *node =
+			json_t *node_json =
 			    json_loadb(node.data, node.length, 0, &jerror);
-			if (!node) {
+			if (!node_json) {
 				printf("ovndb_retrieve json error:%s",
 				       jerror.text);
 			}
@@ -593,9 +585,11 @@ json_t *ovndb_retrieve_node(ovndb_t * ovndb,
 			cass_future_free(future);
 			request->conq--;
 			free(request->future);
-			return node;
+			return node_json;
 		}
 		break;
 	}
 
+//To remove warnings
+	return NULL;
 }

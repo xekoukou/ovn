@@ -119,47 +119,60 @@ int main(int argc, char *argv[])
                                  lposX bigint, \
                                  lposY bigint,   \
                                 ordered_id bigint,   \
+                                set_id int,                  \
                                 hist_id varchar,  \
                                 PRIMARY KEY ((posX,posY),lposX,lposY))");
 
 		execute_query(session,
 			      "CREATE TABLE IF NOT EXISTS ordered_id.graph(  \
                                 ordered_id bigint,                  \
+                                set_id int,                  \
                                 local_id bigint,         \
+                                local_set_id int,                  \
                                 hist_id varchar,  \
                                 last_local_id STATIC,  \
+                                last_set_id STATIC,  \
                                 node varchar,   \
                                 parent_id bigint STATIC,       \
+                                parent_set_id int STATIC,       \
                                 parent_hist_id varchar STATIC,   \
-                                PRIMARY KEY ((ordered_id),local_id))");
+                                PRIMARY KEY ((ordered_id,set_id),local_id,local_set_id))");
 
 		execute_query(session,
 			      "CREATE TABLE IF NOT EXISTS ordered_id.node(  \
                                 ordered_id bigint,                  \
+                                set_id int,                  \
                                 local_id bigint,       \
+                                local_set_id int,                  \
                                 hist_id varchar,  \
                                 last_local_id STATIC,  \
+                                last_set_id STATIC,  \
                                 node_summary varchar,   \
                                 node_content varchar, \
                                 parent_id bigint STATIC,       \
+                                parent_set_id int STATIC,       \
                                 parent_hist_id varchar STATIC,   \
-                                PRIMARY KEY ((ordered_id),local_id))");
+                                PRIMARY KEY ((ordered_id,set_id),local_id.local_set_id))");
 
 		execute_query(session,
 			      "CREATE TABLE IF NOT EXISTS ordered_id.link(  \
                                 ordered_id bigint,                  \
+                                set_id int,                  \
                                 local_id bigint,       \
+                                local_set_id int,                  \
                                 hist_id varchar,  \
                                 last_local_id STATIC,  \
+                                last_set_id STATIC,  \
                                 link_summary varchar,   \
                                 link_content varchar,   \
                                 parent_id bigint STATIC,       \
+                                parent_set_id int STATIC,       \
                                 parent_hist_id varchar STATIC,  \
-                                PRIMARY KEY ((ordered_id),local_id))");
+                                PRIMARY KEY ((ordered_id,set_id),local_id,local_set_id))");
 
 		execute_query(session,
-			      "INSERT INTO ordered_id.graph (ordered_id, local_id, hist_id)   \
-                      VALUES (0,0,'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e')");
+			      "INSERT INTO ordered_id.graph (ordered_id, set_id,local_id,local_set_id, parent_id,parent_set_id,parent_hist_id)   \
+                      VALUES (0,0,0,0,0,0,'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e')");
 
 	}
 	printf("The databases has been created\n Enjoy!\n");

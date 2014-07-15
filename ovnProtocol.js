@@ -61,15 +61,11 @@ module.exports = {
                 properties: {
                     "type": {
                         "enum": ["newNode"]
-                    },
-
-                    node: {
-                        type: "object",
                     }
 
 
                 },
-                required: ["type", "node"]
+                required: ["type"]
             }
         }
 
@@ -138,11 +134,14 @@ response: {
 
                 id: {
                     type: "integer",
+                },
+                set_id: {
+                    type: "integer",
                 }
 
 
             },
-            required: ["type", "id"]
+            required: ["type", "id","set_id"]
 
         },
         newLinkResponse: {
