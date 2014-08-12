@@ -1,0 +1,11 @@
+{
+    "name": "ovn-socket.io",
+    "description": "it is used by the client to connect to the ovn_server and perform transactions",
+    "version": "0.0.1",
+    "private": true,
+    "dependencies": {
+        "socket.io": "0.x",
+        "zmq": "2.x",
+        "tv4": "x"
+    }
+}

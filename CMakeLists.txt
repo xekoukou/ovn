@@ -10,7 +10,8 @@ cmake_minimum_required(VERSION 2.8)
     target_link_libraries(ovndb_create cassandra)
 
     add_executable(ovn_server ovndb.c ovn_server.c )
-    target_link_libraries(ovn_server cassandra jansson czmq sha512)
-    
-    add_executable(consensus_server consensus.c )
-    target_link_libraries(consensus_server cassandra czmq sha512)
+    target_link_libraries(ovn_server cassandra jansson czmq sha512 protobuf-c)
+
+
+    add_executable(consensus_server consensus.c consensus.pb-c.c)
+    target_link_libraries(consensus_server cassandra czmq sha512 protobuf-c)

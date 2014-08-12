@@ -23,8 +23,8 @@
 #include<jansson.h>
 #include<cassandra.h>
 #include<czmq.h>
-#include"consensusInProtocol.h"
 #include"lib_sha512/sha512.h"
+#include"consensus.pb-c.h"
 
 #define NUM_CONCURRENT_REQUESTS 4096
 #define SLEEP_MS 5
@@ -35,6 +35,7 @@ struct db_request_t {
 	int state;
 	int conq;
 	CassFuture **future;
+
 };
 
 typedef struct db_request_t db_request_t;
@@ -53,7 +54,10 @@ struct db_new_node_t {
 	int state;
 	int conq;
 	CassFuture **future;
-	zmsg_t *consensus_msg;
+	Consensus con;
+                int64_t ordered_id;
+        int32_t set_id;
+        char hid[SHA512_LENGTH];
 };
 
 typedef struct db_new_node_t db_new_node_t;
@@ -67,7 +71,7 @@ struct ovndb_t {
 
 typedef struct ovndb_t ovndb_t;
 
-void ovndb_init(ovndb_t ** ovndb, const char **contact_points, int numb,
+void ovndb_init(ovndb_t ** ovndb, const char *contact_points,
 		void *consensus_req_socket);
 
 void ovndb_close(ovndb_t * ovndb);

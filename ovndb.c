@@ -39,16 +39,12 @@ void print_error(CassFuture * future)
 	fprintf(stderr, "Error: %.*s\n", (int)message.length, message.data);
 }
 
-CassCluster *create_cluster(const char **contact_points, int numb)
+CassCluster *create_cluster(const char *contact_points_)
 {
 	CassCluster *cluster = cass_cluster_new();
-	int i = 0;
-	while (i < numb) {
-		cass_cluster_setopt(cluster, CASS_OPTION_CONTACT_POINTS,
-				    contact_points[i],
-				    strlen(contact_points[i]));
-		i++;
-	}
+	CassString contact_points = cass_string_init(contact_points_);
+	cass_cluster_set_contact_points(cluster, contact_points);
+
 	return cluster;
 }
 
@@ -71,25 +67,26 @@ CassError connect_session(CassCluster * cluster, CassSession ** output)
 	return rc;
 }
 
-void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
+void ovndb_init(ovndb_t ** ovndb_, const char *contact_points,
 		void *consensus_req_socket)
 {
+	*ovndb_ = calloc(1, sizeof(ovndb_t));
 	ovndb_t *ovndb = *ovndb_;
-	ovndb = calloc(1, sizeof(ovndb_t));
 	ovndb->consensus_req_socket = consensus_req_socket;
 
 	CassError rc = 0;
-	ovndb->cluster = create_cluster(contact_points, numb);
+	ovndb->cluster = create_cluster(contact_points);
 
 	rc = connect_session(ovndb->cluster, &(ovndb->session));
 	if (rc != CASS_OK) {
 		exit(-1);
 	}
 //initialize prepared statements
+	printf("1");
 
 	CassString query =
 	    cass_string_init
-	    ("INSERT INTO ordered_id.node (ordered_id,local_id,hist_id,last_local_id,node_summary,node_content,parent_id,parent_hist_id ) VALUES (?,?,?,?,?,?,?,? ) ");
+	    ("INSERT INTO ordered_id.node (ordered_id,set_id,local_id,local_set_id,hist_id,last_id,last_set_id,node_summary,node_content,parent_id,parent_set_id,parent_hist_id ) VALUES (?,?,?,?,?,?,?,?,?,?,?,? ) ");
 	CassFuture *future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -103,9 +100,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
 
 	cass_future_free(future);
 
+	printf("2");
 	query =
 	    cass_string_init
-	    ("SELECT node_summary,last_local_id FROM ordered_id.node WHERE ordered_id = ? and local_id = ? ");
+	    ("SELECT node_summary,last_id,last_set_id FROM ordered_id.node WHERE ordered_id = ? and set_id=? and local_id = ? and local_set_id=? ");
 	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -119,9 +117,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
 
 	cass_future_free(future);
 
+	printf("3");
 	query =
 	    cass_string_init
-	    ("SELECT node_content,last_local_id FROM ordered_id.node WHERE ordered_id = ? and local_id IN (?,?) ");
+	    ("SELECT node_content,last_id,last_set_id FROM ordered_id.node WHERE ordered_id = ? and set_id=? and local_id < ?");
 	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -135,9 +134,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
 
 	cass_future_free(future);
 
+	printf("4");
 	query =
 	    cass_string_init
-	    ("INSERT INTO ordered_id.link (ordered_id,local_id,hist_id,last_local_id,link_summary,link_content,parent_id,parent_hist_id ) VALUES (?,?,?i,?,?,?,?,? ) ");
+	    ("INSERT INTO ordered_id.link (ordered_id,local_id,local_set_id,hist_id,last_id,last_set_id,link_summary,link_content,parent_id,parent_set_id,parent_hist_id ) VALUES (?,?,?,?,?,?,?,?,?,?,? ) ");
 	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -151,9 +151,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
 
 	cass_future_free(future);
 
+	printf("5");
 	query =
 	    cass_string_init
-	    ("SELECT link_summary,last_local_id FROM ordered_id.link WHERE ordered_id = ? and local_id = ? ");
+	    ("SELECT link_summary,last_id,last_set_id FROM ordered_id.link WHERE ordered_id = ? and set_id=? and local_id = ? and local_set_id=? ");
 	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -167,9 +168,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
 
 	cass_future_free(future);
 
+	printf("6");
 	query =
 	    cass_string_init
-	    ("SELECT link_content,last_local_id FROM ordered_id.link_content WHERE ordered_id = ? and local_id IN (?,?) ");
+	    ("SELECT link_content,last_id,last_set_id FROM ordered_id.link WHERE ordered_id = ? and set_id = ? and local_id < ?");
 	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -183,10 +185,11 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
 
 	cass_future_free(future);
 
+	printf("7");
 //node is null at initialization
 	query =
 	    cass_string_init
-	    ("INSERT INTO ordered_id.graph (ordered_id,set_id,local_id,local_set_id,hist_id,last_local_id,last_set_id) VALUES (?,?,?,?,?,?,?) ");
+	    ("INSERT INTO ordered_id.graph (ordered_id,set_id,local_id,local_set_id,hist_id,last_id,last_set_id) VALUES (?,?,?,?,?,?,?) ");
 	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -200,9 +203,10 @@ void ovndb_init(ovndb_t ** ovndb_, const char *contact_points[], int numb,
 
 	cass_future_free(future);
 
+	printf("8");
 	query =
 	    cass_string_init
-	    ("SELECT node,last_local_id FROM ordered_id.graph WHERE ordered_id = ? and local_id = ? ");
+	    ("SELECT node,last_id,last_set_id FROM ordered_id.graph WHERE ordered_id = ? and set_id=? and local_id = ? and local_set_id=? ");
 	future = cass_session_prepare(ovndb->session, query);
 	cass_future_wait(future);
 
@@ -276,19 +280,27 @@ int ovndb_new_node_data(ovndb_t * ovndb, int64_t id, json_t * new_node_data)
 #define OVNDB_NEW_NODE_GOT_CONSENSUS 1
 #define OVNDB_NEW_NODE_SENT_REQUEST 2
 
-int64_t ovndb_insert_node(ovndb_t * ovndb, db_new_node_t * request,
-			  int32_t * set_id, char *hid)
+void ovndb_insert_node(ovndb_t * ovndb, db_new_node_t * request,
+			  zmsg_t *consensus_msg)
 {
 
 	switch (request->state) {
 
 	case 0:;
+		Consensus con = CONSENSUS__INIT;
+		Consensus__Recipe recipe = CONSENSUS__RECIPE__INIT;
 
-		int32_t type = CONSENSUS_TYPE_GRAPH_NODE;
+		recipe.type = CONSENSUS__RECIPE__TYPE__NODE;
+
+		con.type = CONSENSUS__TYPE__RECIPE;
+		con.recipe = &recipe;
+		size_t len = consensus__get_packed_size(&con);
+		void *buf = malloc(len);
+		consensus__pack(&con, buf);
 		zmsg_t *msg = zmsg_new();
 
-		zmsg_addmem(msg, &type, sizeof(int32_t));
-		zmsg_addmem(msg, NULL, 0);
+		zmsg_addmem(msg, buf, len);
+		free(buf);
 
 		zmsg_send(&msg, ovndb->consensus_req_socket);
 		request->state = OVNDB_NEW_NODE_GOT_CONSENSUS;
@@ -309,8 +321,7 @@ int64_t ovndb_insert_node(ovndb_t * ovndb, db_new_node_t * request,
 		CassStatement *statement;
 		CassFuture *future;
 
-		statement =
-		    cass_prepared_bind(PR_INSERT_NODE, 6, CASS_CONSISTENCY_ONE);
+		statement = cass_prepared_bind(PR_INSERT_NODE, 6);
 
 		cass_statement_bind_int64(statement, 0, id);
 		cass_statement_bind_int64(statement, 1, *set_id);
@@ -542,9 +553,7 @@ json_t *ovndb_retrieve_node(ovndb_t * ovndb, db_retrieve_node_t * request)
 		CassStatement *statement;
 		CassFuture *future;
 
-		statement =
-		    cass_prepared_bind(PR_RETRIEVE_NODE_SUMMARY, 2,
-				       CASS_CONSISTENCY_ONE);
+		statement = cass_prepared_bind(PR_RETRIEVE_NODE_SUMMARY, 2);
 
 		cass_statement_bind_int64(statement, 0, request->ancestorId);
 		cass_statement_bind_int64(statement, 1, request->id);

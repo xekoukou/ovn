@@ -30,16 +30,12 @@ void print_error(CassFuture * future)
 	fprintf(stderr, "Error: %.*s\n", (int)message.length, message.data);
 }
 
-CassCluster *create_cluster(const char **contact_points, int numb)
+CassCluster *create_cluster(const char *contact_points_)
 {
 	CassCluster *cluster = cass_cluster_new();
-	int i = 0;
-	while (i < numb) {
-		cass_cluster_setopt(cluster, CASS_OPTION_CONTACT_POINTS,
-				    contact_points[i],
-				    strlen(contact_points[i]));
-		i++;
-	}
+	CassString contact_points = cass_string_init(contact_points_);
+	cass_cluster_set_contact_points(cluster, contact_points);
+
 	return cluster;
 }
 
@@ -67,8 +63,7 @@ CassError execute_query(CassSession * session, const char *query)
 	CassError rc = 0;
 	CassFuture *future = NULL;
 	CassStatement *statement =
-	    cass_statement_new(cass_string_init(query), 0,
-			       CASS_CONSISTENCY_ONE);
+	    cass_statement_new(cass_string_init(query), 0);
 
 	future = cass_session_execute(session, statement);
 	cass_future_wait(future);
@@ -76,6 +71,7 @@ CassError execute_query(CassSession * session, const char *query)
 	rc = cass_future_error_code(future);
 	if (rc != CASS_OK) {
 		print_error(future);
+		exit(-1);
 	}
 
 	cass_future_free(future);
@@ -94,7 +90,7 @@ int main(int argc, char *argv[])
 	}
 
 	CassError rc = 0;
-	CassCluster *cluster = create_cluster((const char **)&(argv[1]), 1);
+	CassCluster *cluster = create_cluster((const char *)argv[1]);
 	CassSession *session = NULL;
 	CassFuture *close_future = NULL;
 
@@ -105,13 +101,16 @@ int main(int argc, char *argv[])
 
 	if (session) {
 
+		printf("Creating position_id keyspace\n");
 		execute_query(session,
 			      "CREATE KEYSPACE position_id WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 3 };");
 
+		printf("Creating ordered_id keyspace\n");
 		execute_query(session,
 			      "CREATE KEYSPACE ordered_id WITH REPLICATION = { 'class' : 'NetworkTopologyStrategy', 'datacenter1' : 3 };");
 
 //lpos are the first 16 bits *magic number
+		printf("Creating position_id.ids table\n");
 		execute_query(session,
 			      "CREATE TABLE IF NOT EXISTS position_id.ids( \
                                  posX bigint,   \
@@ -123,6 +122,7 @@ int main(int argc, char *argv[])
                                 hist_id varchar,  \
                                 PRIMARY KEY ((posX,posY),lposX,lposY))");
 
+		printf("Creating ordered_id.graph table\n");
 		execute_query(session,
 			      "CREATE TABLE IF NOT EXISTS ordered_id.graph(  \
                                 ordered_id bigint,                  \
@@ -130,14 +130,15 @@ int main(int argc, char *argv[])
                                 local_id bigint,         \
                                 local_set_id int,                  \
                                 hist_id varchar,  \
-                                last_local_id STATIC,  \
-                                last_set_id STATIC,  \
+                                last_id bigint STATIC,  \
+                                last_set_id int STATIC,  \
                                 node varchar,   \
                                 parent_id bigint STATIC,       \
                                 parent_set_id int STATIC,       \
                                 parent_hist_id varchar STATIC,   \
                                 PRIMARY KEY ((ordered_id,set_id),local_id,local_set_id))");
 
+		printf("Creating ordered_id.node table\n");
 		execute_query(session,
 			      "CREATE TABLE IF NOT EXISTS ordered_id.node(  \
                                 ordered_id bigint,                  \
@@ -145,15 +146,16 @@ int main(int argc, char *argv[])
                                 local_id bigint,       \
                                 local_set_id int,                  \
                                 hist_id varchar,  \
-                                last_local_id STATIC,  \
-                                last_set_id STATIC,  \
+                                last_id bigint STATIC,  \
+                                last_set_id int STATIC,  \
                                 node_summary varchar,   \
                                 node_content varchar, \
                                 parent_id bigint STATIC,       \
                                 parent_set_id int STATIC,       \
                                 parent_hist_id varchar STATIC,   \
-                                PRIMARY KEY ((ordered_id,set_id),local_id.local_set_id))");
+                                PRIMARY KEY ((ordered_id,set_id),local_id,local_set_id))");
 
+		printf("Creating ordered_id.link table\n");
 		execute_query(session,
 			      "CREATE TABLE IF NOT EXISTS ordered_id.link(  \
                                 ordered_id bigint,                  \
@@ -161,8 +163,8 @@ int main(int argc, char *argv[])
                                 local_id bigint,       \
                                 local_set_id int,                  \
                                 hist_id varchar,  \
-                                last_local_id STATIC,  \
-                                last_set_id STATIC,  \
+                                last_id bigint STATIC,  \
+                                last_set_id int STATIC,  \
                                 link_summary varchar,   \
                                 link_content varchar,   \
                                 parent_id bigint STATIC,       \
@@ -170,6 +172,7 @@ int main(int argc, char *argv[])
                                 parent_hist_id varchar STATIC,  \
                                 PRIMARY KEY ((ordered_id,set_id),local_id,local_set_id))");
 
+		printf("Inserting initial ledger to the database\n");
 		execute_query(session,
 			      "INSERT INTO ordered_id.graph (ordered_id, set_id,local_id,local_set_id, parent_id,parent_set_id,parent_hist_id)   \
                       VALUES (0,0,0,0,0,0,'cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce47d0d13c5d85f2b0ff8318d2877eec2f63b931bd47417a81a538327af927da3e')");

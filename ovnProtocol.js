@@ -5,7 +5,10 @@ module.exports = {
         properties: {
             requestId: {
                 type: "integer"
-            }
+            },
+            serviceRequest:{
+enum:[1]
+},
             request: {
                 type: "object",
                 oneof: [{
@@ -26,7 +29,7 @@ module.exports = {
             }
 
         },
-        required: ["requestId", "request"],
+        required: ["requestId","serviceRequest", "request"],
 
         definitions: {
 

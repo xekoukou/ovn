@@ -8,3 +8,5 @@ nacl
 http://hyperelliptic.org/nacl/nacl-20110221.tar.bz2
 
 lib_sha512
+
+libprotobuf-c

@@ -38,9 +38,6 @@ struct new_node_request_t {
 	int consensus_req;	//boolean
 	zmsg_t *consensus_msg;
 	db_new_node_t **requests;
-	int64_t id;
-	int32_t set_id;
-	char hid[SHA512_LENGTH];
 
 };
 
@@ -69,7 +66,7 @@ typedef struct retrieve_request_t retrieve_request_t;
 #define REQ_RETRIEVE_REQUEST 1
 #define REQ_NEW_NODE 2
 
-void process_response(json_t * response, server_request_t *server_request,
+void process_response(json_t * response, server_request_t * server_request,
 		      server_requests_t * server_requests);
 
 #endif
